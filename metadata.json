@@ -1,0 +1,8 @@
+{
+  "name": "KENEX AI Multi-Modal Studio",
+  "description": "An advanced web application showcasing the power of Gemini API. Features include AI-powered image editing, image-to-video creation with Veo, location-based information with Maps Grounding, and real-time voice conversations with the Live API.",
+  "requestFramePermissions": [
+    "microphone",
+    "geolocation"
+  ]
+}
