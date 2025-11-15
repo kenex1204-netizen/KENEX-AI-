@@ -1,0 +1,189 @@
+import React, { useState, useEffect } from 'react';
+import { GoogleGenAI } from '@google/genai';
+import TranslateIcon from './icons/TranslateIcon';
+
+// History item structure
+interface HistoryItem {
+  id: string;
+  inputText: string;
+  translatedText: string;
+  timestamp: number;
+}
+
+// Trash icon for clearing history
+const TrashIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+    </svg>
+);
+
+
+const LiveTranslator: React.FC = () => {
+  const [inputText, setInputText] = useState<string>('');
+  const [translatedText, setTranslatedText] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [activeHistoryItemId, setActiveHistoryItemId] = useState<string | null>(null);
+
+  const LOCAL_STORAGE_KEY = 'liveTranslatorHistory';
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (stored) {
+        setHistory(JSON.parse(stored));
+      }
+    } catch (e) {
+      console.error("Failed to parse history:", e);
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+  }, []);
+
+  const handleTranslate = async () => {
+    if (!inputText.trim()) {
+      setError('Please enter text to translate.');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    setTranslatedText('');
+    setActiveHistoryItemId(null);
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: inputText,
+        config: {
+          systemInstruction: 'You are an expert translator. Translate the given text into Spanish accurately and naturally.',
+        },
+      });
+      setTranslatedText(response.text);
+
+      const newHistoryItem: HistoryItem = {
+        id: new Date().toISOString() + Math.random(),
+        inputText: inputText,
+        translatedText: response.text,
+        timestamp: Date.now(),
+      };
+      
+      const updatedHistory = [newHistoryItem, ...history];
+      setHistory(updatedHistory);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedHistory));
+      setActiveHistoryItemId(newHistoryItem.id);
+
+    } catch (err) {
+      console.error(err);
+      setError('Failed to translate text. Please check the console for details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSelectHistory = (item: HistoryItem) => {
+    setActiveHistoryItemId(item.id);
+    setInputText(item.inputText);
+    setTranslatedText(item.translatedText);
+    setError(null);
+  };
+
+  const handleClearHistory = () => {
+    setHistory([]);
+    setActiveHistoryItemId(null);
+    setInputText('');
+    setTranslatedText('');
+    localStorage.removeItem(LOCAL_STORAGE_KEY);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="text-center mb-4">
+        <h2 className="text-2xl font-bold">Live Text Translator</h2>
+        <p className="text-gray-400">Translate any text from English to Spanish in real-time.</p>
+      </div>
+
+      <div className="flex-grow grid md:grid-cols-12 gap-4 min-h-[40vh]">
+        {/* History Panel */}
+        <div className="md:col-span-4 bg-gray-800/50 p-4 rounded-lg flex flex-col">
+          <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-700">
+            <h2 className="text-lg font-bold text-gray-100">History</h2>
+            <button 
+              onClick={handleClearHistory} 
+              disabled={history.length === 0} 
+              className="flex items-center text-sm text-gray-400 hover:text-white disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+              title="Clear history"
+            >
+              <TrashIcon />
+              <span className="ml-1">Clear</span>
+            </button>
+          </div>
+          <ul className="flex-grow overflow-y-auto space-y-1 -mr-2 pr-2">
+            {history.length > 0 ? history.map(item => (
+              <li 
+                key={item.id} 
+                onClick={() => handleSelectHistory(item)} 
+                className={`p-2 rounded-md cursor-pointer transition-colors ${activeHistoryItemId === item.id ? 'bg-fuchsia-600/80 text-white' : 'hover:bg-gray-700/70'}`}
+              >
+                <p className="truncate font-semibold text-sm">{item.inputText}</p>
+                <p className="text-xs text-gray-400">{new Date(item.timestamp).toLocaleString()}</p>
+              </li>
+            )) : (
+              <li className="flex items-center justify-center h-full text-gray-500 text-center text-sm">No translation history.</li>
+            )}
+          </ul>
+        </div>
+        
+        {/* Main Content Area */}
+        <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Input Panel */}
+            <div className="flex flex-col bg-gray-800/50 p-4 rounded-lg">
+                <h3 className="text-lg font-semibold mb-2 text-gray-100">English Text</h3>
+                <textarea
+                    value={inputText}
+                    onChange={(e) => {
+                        setInputText(e.target.value);
+                        setActiveHistoryItemId(null); // Typing new text de-selects history
+                    }}
+                    placeholder="Enter text to translate..."
+                    className="flex-grow w-full bg-gray-700 border border-gray-600 rounded-lg p-3 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 resize-none"
+                    disabled={isLoading}
+                />
+            </div>
+
+            {/* Output Panel */}
+            <div className="flex flex-col bg-gray-800/50 p-4 rounded-lg relative">
+                <h3 className="text-lg font-semibold mb-2 text-gray-100">Spanish Translation</h3>
+                {isLoading && (
+                    <div className="absolute inset-0 bg-gray-900/80 flex flex-col items-center justify-center rounded-lg z-10">
+                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-fuchsia-400"></div>
+                    <p className="mt-4 text-lg">Translating...</p>
+                    </div>
+                )}
+                <textarea
+                    value={translatedText}
+                    readOnly
+                    placeholder="Translation will appear here..."
+                    className="flex-grow w-full bg-gray-900 border border-gray-700 rounded-lg p-3 text-gray-300 placeholder-gray-500 focus:outline-none resize-none cursor-default"
+                />
+            </div>
+        </div>
+      </div>
+
+      <div className="mt-4 flex flex-col items-center">
+        <button
+          onClick={handleTranslate}
+          disabled={isLoading || !inputText}
+          className="w-full sm:w-auto flex items-center justify-center bg-fuchsia-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-fuchsia-700 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors"
+        >
+          <TranslateIcon />
+          <span className="ml-2">Translate to Spanish</span>
+        </button>
+        {error && <p className="text-red-400 mt-2 text-center">{error}</p>}
+      </div>
+    </div>
+  );
+};
+
+export default LiveTranslator;

@@ -2,16 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { Tab } from './types';
 import ImageEditor from './components/ImageEditor';
 import ImageGenerator from './components/ImageGenerator';
-import VideoCreator from './components/VideoCreator';
+import ImageAnalyzer from './components/ImageAnalyzer';
 import MapExplorer from './components/MapExplorer';
 import VoiceAssistant from './components/VoiceAssistant';
-import WebSearch from './components/WebSearch'; 
+import WebSearch from './components/WebSearch';
+import LiveTranslator from './components/LiveTranslator';
 import ImageIcon from './components/icons/ImageIcon';
 import PaintBrushIcon from './components/icons/PaintBrushIcon';
-import MovieIcon from './components/icons/MovieIcon';
+import DocumentScannerIcon from './components/icons/DocumentScannerIcon';
 import MapIcon from './components/icons/MapIcon';
 import VoiceIcon from './components/icons/VoiceIcon';
 import SearchIcon from './components/icons/SearchIcon';
+import TranslateIcon from './components/icons/TranslateIcon';
 
 const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<Tab>(Tab.ImageGenerator);
@@ -19,10 +21,11 @@ const App: React.FC = () => {
   const tabs = useMemo(() => [
     { id: Tab.ImageGenerator, label: 'Image Generator', icon: <PaintBrushIcon /> },
     { id: Tab.ImageEditor, label: 'Image Editor', icon: <ImageIcon /> },
-    { id: Tab.VideoCreator, label: 'Video Creator', icon: <MovieIcon /> },
+    { id: Tab.ImageAnalyzer, label: 'Image Analyzer', icon: <DocumentScannerIcon /> },
     { id: Tab.MapExplorer, label: 'Map Explorer', icon: <MapIcon /> },
     { id: Tab.VoiceAssistant, label: 'Voice Assistant', icon: <VoiceIcon /> },
     { id: Tab.WebSearch, label: 'Web Search', icon: <SearchIcon /> },
+    { id: Tab.LiveTranslator, label: 'Translator', icon: <TranslateIcon /> },
   ], []);
 
   const renderContent = () => {
@@ -31,14 +34,16 @@ const App: React.FC = () => {
         return <ImageGenerator />;
       case Tab.ImageEditor:
         return <ImageEditor />;
-      case Tab.VideoCreator:
-        return <VideoCreator />;
+      case Tab.ImageAnalyzer:
+        return <ImageAnalyzer />;
       case Tab.MapExplorer:
         return <MapExplorer />;
       case Tab.VoiceAssistant:
         return <VoiceAssistant />;
       case Tab.WebSearch:
         return <WebSearch />;
+      case Tab.LiveTranslator:
+        return <LiveTranslator />;
       default:
         return null;
     }
@@ -55,7 +60,7 @@ const App: React.FC = () => {
         </header>
 
         <nav className="flex justify-center mb-4 sm:mb-6">
-          <div className="flex flex-wrap justify-center space-x-1 sm:space-x-2 bg-gray-800 p-1.5 rounded-xl shadow-lg">
+          <div className="flex flex-wrap justify-center space-x-1 sm:space-x-2 bg-gray-800/80 backdrop-blur-sm p-1.5 rounded-xl shadow-lg border border-gray-700/50">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -73,7 +78,7 @@ const App: React.FC = () => {
           </div>
         </nav>
 
-        <main className="flex-grow bg-gray-900/60 p-4 sm:p-6 rounded-2xl shadow-2xl border border-gray-700 min-h-[60vh]">
+        <main className="flex-grow bg-gray-900/80 backdrop-blur-sm p-4 sm:p-6 rounded-2xl shadow-2xl border border-gray-700/50 min-h-[60vh]">
           {renderContent()}
         </main>
       </div>

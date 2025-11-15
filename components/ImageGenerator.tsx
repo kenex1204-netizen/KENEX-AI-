@@ -81,7 +81,7 @@ const ImageGenerator: React.FC = () => {
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g., A futuristic cityscape with flying cars, neon lights, detailed, 8k"
+          placeholder="Describe your image in English or Spanish... (e.g., A futuristic cityscape with flying cars / Una ciudad futurista con coches voladores)"
           className="w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500 h-24 resize-none"
           disabled={isLoading}
         />

@@ -12,6 +12,12 @@ interface LiveSession {
   close(): void;
 }
 
+const TrashIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+    </svg>
+);
+
 const VoiceAssistant: React.FC = () => {
   // Live session state
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -26,31 +32,40 @@ const VoiceAssistant: React.FC = () => {
   const nextStartTimeRef = useRef<number>(0);
   const currentInputTranscriptionRef = useRef('');
   const currentOutputTranscriptionRef = useRef('');
+  const isActiveRef = useRef(false);
 
   // TTS state
   const [ttsText, setTtsText] = useState('');
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (sessionPromiseRef.current) {
+    isActiveRef.current = isSessionActive;
+  }, [isSessionActive]);
+  
+  const stopSession = useCallback(() => {
+    if (sessionPromiseRef.current) {
         sessionPromiseRef.current.then(session => session.close());
-      }
-      if (streamRef.current) {
+        sessionPromiseRef.current = null;
+    }
+    if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
-      }
-      inputAudioContextRef.current?.close();
-      outputAudioContextRef.current?.close();
-    };
+        streamRef.current = null;
+    }
+    scriptProcessorRef.current?.disconnect();
+    sourcesRef.current.forEach(source => source.stop());
+    sourcesRef.current.clear();
+    inputAudioContextRef.current?.close();
+    outputAudioContextRef.current?.close();
+    setIsSessionActive(false);
+    setIsRecording(false);
   }, []);
 
-  const handleLiveError = (message: string, e?: ErrorEvent | CloseEvent) => {
+  const handleLiveError = useCallback((message: string, e?: ErrorEvent | CloseEvent) => {
     console.error(message, e);
     setError(message);
     stopSession();
-  };
+  }, [stopSession]);
 
   const startSession = useCallback(async () => {
     setError(null);
@@ -128,7 +143,7 @@ const VoiceAssistant: React.FC = () => {
           },
           onerror: (e: ErrorEvent) => handleLiveError('Live session error.', e),
           onclose: (e: CloseEvent) => {
-            if (isSessionActive) handleLiveError('Live session closed unexpectedly.', e);
+            if (isActiveRef.current) handleLiveError('Live session closed unexpectedly.', e);
           },
         }
       });
@@ -137,23 +152,15 @@ const VoiceAssistant: React.FC = () => {
       setError('Failed to start session. Please allow microphone access.');
       setIsRecording(false);
     }
-  }, [isSessionActive]);
+  }, [handleLiveError]);
 
-  const stopSession = useCallback(() => {
-    if (sessionPromiseRef.current) {
-        sessionPromiseRef.current.then(session => session.close());
-        sessionPromiseRef.current = null;
+  useEffect(() => {
+    startSession();
+    return () => {
+      stopSession();
     }
-    if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-    }
-    scriptProcessorRef.current?.disconnect();
-    sourcesRef.current.forEach(source => source.stop());
-    sourcesRef.current.clear();
-    setIsSessionActive(false);
-    setIsRecording(false);
-  }, []);
+  }, [startSession, stopSession]);
+
 
   const handleGenerateSpeech = async () => {
     if (!ttsText || isSpeaking) return;
@@ -200,9 +207,20 @@ const VoiceAssistant: React.FC = () => {
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
       {/* Live Conversation */}
       <div className="flex flex-col bg-gray-800/50 p-4 rounded-lg">
-        <h2 className="text-xl font-bold mb-3 text-center text-gray-100">Live Conversation</h2>
+        <div className="flex justify-between items-center mb-3">
+            <h2 className="text-xl font-bold text-gray-100">Live Conversation</h2>
+            <button
+                onClick={() => setTranscriptions([])}
+                title="Clear transcription"
+                disabled={transcriptions.length === 0}
+                className="p-1 text-gray-400 rounded-full hover:bg-gray-700 hover:text-white disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed transition-colors"
+            >
+                <TrashIcon />
+            </button>
+        </div>
         <div className="flex-grow bg-gray-900 p-3 rounded-md overflow-y-auto min-h-[30vh]">
-          {transcriptions.length === 0 && <p className="text-gray-500 text-center pt-4">Start a session to see the conversation.</p>}
+          {transcriptions.length === 0 && !isRecording && <p className="text-gray-500 text-center pt-4">Session starting automatically...</p>}
+          {transcriptions.length === 0 && isRecording && <p className="text-gray-500 text-center pt-4">Listening... a conversation to see the conversation.</p>}
           {transcriptions.map((t, i) => (
             <div key={i} className={`p-2 my-1 rounded-md ${t.type === 'user' ? 'bg-gray-700 text-right' : 'bg-fuchsia-900/70 text-left'}`}>
               <span className="font-semibold capitalize">{t.type}: </span>{t.text}
@@ -210,16 +228,17 @@ const VoiceAssistant: React.FC = () => {
           ))}
         </div>
         <div className="mt-4">
-          <button
-            onClick={isRecording ? stopSession : startSession}
+           <button
+            onClick={stopSession}
+            disabled={!isRecording}
             className={`w-full py-3 px-4 font-bold rounded-lg transition-all duration-300 flex items-center justify-center ${
               isRecording 
                 ? 'bg-red-600 hover:bg-red-700 text-white' 
-                : 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-600 cursor-not-allowed text-gray-400'
             }`}
           >
             <VoiceIcon />
-            <span className="ml-2">{isRecording ? 'End Session' : 'Start Session'}</span>
+            <span className="ml-2">{isRecording ? 'End Session' : 'Session Ended'}</span>
             {isRecording && <span className="ml-2 w-3 h-3 bg-white rounded-full animate-pulse"></span>}
           </button>
         </div>
@@ -231,7 +250,7 @@ const VoiceAssistant: React.FC = () => {
         <textarea
           value={ttsText}
           onChange={(e) => setTtsText(e.target.value)}
-          placeholder="Type text here to generate speech..."
+          placeholder="Type text in English or Spanish for TTS..."
           className="flex-grow w-full bg-gray-700 border border-gray-600 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
           disabled={isSpeaking}
         />

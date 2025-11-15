@@ -1,10 +1,11 @@
 export enum Tab {
   ImageGenerator = 'imageGenerator',
   ImageEditor = 'imageEditor',
-  VideoCreator = 'videoCreator',
+  ImageAnalyzer = 'imageAnalyzer',
   MapExplorer = 'mapExplorer',
   VoiceAssistant = 'voiceAssistant',
   WebSearch = 'webSearch',
+  LiveTranslator = 'liveTranslator',
 }
 
 export interface Transcription {

@@ -100,7 +100,7 @@ const ImageEditor: React.FC = () => {
           type="text"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g., 'Add a retro filter'"
+          placeholder="Edit instruction in English or Spanish... (e.g., Add a retro filter / Añade un filtro retro)"
           className="flex-grow bg-gray-700 border border-gray-600 rounded-lg p-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-fuchsia-500"
           disabled={isLoading}
         />
